@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SignLearn — ASL Sign Language Learning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg: #F3F4FC;
+    --surface: #FFFFFF;
+    --surface-2: #F8F8FF;
+    --ink: #1E1B3A;
+    --ink-dim: #6B6884;
+    --border: #E3E1F5;
+    --blue: #4C6FFF;
+    --blue-dim: #3B57D9;
+    --purple: #8B5CF6;
+    --purple-dim: #7440E0;
+    --gradient: linear-gradient(135deg, var(--blue), var(--purple));
+    --success: #1DB876;
+    --success-bg: #E3FBF1;
+    --danger: #F43F5E;
+    --danger-bg: #FFE8EC;
+    --shadow: 0 8px 24px rgba(76, 111, 255, 0.10);
+    --font-head: 'Poppins', 'Inter', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14132A;
+      --surface: #1E1D3A;
+      --surface-2: #262545;
+      --ink: #F1F0FF;
+      --ink-dim: #A6A3C9;
+      --border: #33325A;
+      --blue: #7C94FF;
+      --blue-dim: #96A9FF;
+      --purple: #B79BFF;
+      --purple-dim: #C7B0FF;
+      --success: #3EDB9A;
+      --success-bg: #123328;
+      --danger: #FF7A93;
+      --danger-bg: #3A1620;
+      --shadow: 0 8px 24px rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14132A;
+    --surface: #1E1D3A;
+    --surface-2: #262545;
+    --ink: #F1F0FF;
+    --ink-dim: #A6A3C9;
+    --border: #33325A;
+    --blue: #7C94FF;
+    --blue-dim: #96A9FF;
+    --purple: #B79BFF;
+    --purple-dim: #C7B0FF;
+    --success: #3EDB9A;
+    --success-bg: #123328;
+    --danger: #FF7A93;
+    --danger-bg: #3A1620;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #F3F4FC; --surface:#FFFFFF; --surface-2:#F8F8FF; --ink:#1E1B3A; --ink-dim:#6B6884;
+    --border:#E3E1F5; --blue:#4C6FFF; --blue-dim:#3B57D9; --purple:#8B5CF6; --purple-dim:#7440E0;
+    --success:#1DB876; --success-bg:#E3FBF1; --danger:#F43F5E; --danger-bg:#FFE8EC;
+    --shadow: 0 8px 24px rgba(76,111,255,0.10); color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+  h1,h2,h3,h4 { font-family: var(--font-head); margin: 0; }
+  button { font-family: var(--font-body); cursor: pointer; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+  /* ---------- Nav ---------- */
+  nav.topnav {
+    position: sticky; top:0; z-index: 50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 24px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .nav-brand { display:flex; align-items:center; gap:10px; font-family: var(--font-head); font-weight:800; font-size:20px; }
+  .nav-brand .dot { width:12px; height:12px; border-radius:4px; background: var(--gradient); display:inline-block; }
+  .nav-links { display:flex; gap:4px; flex-wrap: wrap; }
+  .nav-links button {
+    background:none; border:none; color: var(--ink-dim); font-weight:600; font-size:14px;
+    padding: 9px 14px; border-radius: 10px; transition: background 0.15s, color 0.15s;
+  }
+  .nav-links button:hover { background: var(--surface-2); color: var(--ink); }
+  .nav-links button.active { background: var(--gradient); color: #fff; }
+  .theme-btn {
+    background: var(--surface-2); border:1px solid var(--border); color: var(--ink-dim);
+    font-size: 13px; padding: 8px 14px; border-radius: 100px; font-weight:600;
+  }
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+  .page { display:none; max-width: 1180px; margin: 0 auto; padding: 34px 22px 70px; animation: fadeIn 0.35s ease; }
+  .page.active { display:block; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+  @media (prefers-reduced-motion: reduce) { .page { animation:none; } }
+
+  /* ---------- Home ---------- */
+  .hero {
+    background: var(--gradient);
+    border-radius: 22px;
+    padding: 52px 40px;
+    color: #fff;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .hero h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800; }
+  .hero p { font-size: 16px; opacity: 0.92; max-width: 52ch; margin: 14px auto 0; line-height: 1.6; }
+  .hero-actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 28px; }
+  .hero-actions button {
+    border: none; padding: 13px 26px; border-radius: 100px; font-weight:700; font-size: 15px;
+  }
+  .btn-solid { background: #fff; color: var(--blue-dim); }
+  .btn-solid:hover { background: #eef1ff; }
+  .btn-outline { background: rgba(255,255,255,0.12); color: #fff; border: 1.5px solid rgba(255,255,255,0.55) !important; }
+  .btn-outline:hover { background: rgba(255,255,255,0.22); }
+
+  .home-grid {
+    display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px;
+  }
+  @media (max-width: 800px) { .home-grid { grid-template-columns: 1fr; } }
+  .feature-card {
+    background: var(--surface); border:1px solid var(--border); border-radius: 16px; padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .feature-card .icon {
+    width: 42px; height:42px; border-radius: 12px; background: var(--gradient);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-size: 20px; margin-bottom: 12px;
+  }
+  .feature-card h3 { font-size: 16px; margin-bottom: 6px; }
+  .feature-card p { font-size: 13.5px; color: var(--ink-dim); line-height: 1.55; margin:0; }
+
+  /* ---------- Cards / grid ---------- */
+  .section-head { margin-bottom: 20px; }
+  .section-head h2 { font-size: 26px; font-weight: 800; }
+  .section-head p { color: var(--ink-dim); font-size: 14px; margin-top: 6px; max-width: 65ch; line-height:1.55; }
+
+  .alpha-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
+  .alpha-card {
+    background: var(--surface); border:1px solid var(--border); border-radius: 14px; padding: 14px;
+    display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
+    cursor:pointer; transition: transform 0.12s, box-shadow 0.12s; position:relative;
+  }
+  .alpha-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+  .alpha-card .big { font-family: var(--font-head); font-weight:800; font-size: 26px; }
+  .alpha-card .badge {
+    position:absolute; top:8px; right:8px; font-size: 9px; font-weight:700; padding: 2px 6px;
+    border-radius: 100px; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .badge.live { background: var(--success-bg); color: var(--success); }
+  .badge.manual { background: var(--surface-2); color: var(--ink-dim); }
+  .alpha-card .tip-mini { font-size: 10.5px; color: var(--ink-dim); line-height:1.3; min-height: 26px; }
+
+  /* finger diagram */
+  .finger-diagram { display:flex; gap:3px; align-items:flex-end; height: 40px; }
+  .finger-diagram .bar { width:6px; border-radius: 4px; background: var(--border); }
+  .finger-diagram .bar.up { background: var(--gradient); }
+  .finger-diagram .bar.thumb { height: 18px; }
+  .finger-diagram .bar.f1 { height: 30px; }
+  .finger-diagram .bar.f2 { height: 34px; }
+  .finger-diagram .bar.f3 { height: 30px; }
+  .finger-diagram .bar.f4 { height: 24px; }
+
+  /* modal */
+  .modal-backdrop {
+    position: fixed; inset:0; background: rgba(10,8,30,0.55); display:none;
+    align-items:center; justify-content:center; z-index: 100; padding: 20px;
+  }
+  .modal-backdrop.open { display:flex; }
+  .modal {
+    background: var(--surface); border-radius: 18px; padding: 28px; max-width: 380px; width:100%;
+    text-align:center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal .big { font-family: var(--font-head); font-size: 56px; font-weight: 800;
+    background: var(--gradient); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .modal .finger-diagram { justify-content:center; margin: 14px 0; }
+  .modal p.desc { color: var(--ink-dim); font-size: 14px; line-height:1.6; margin: 10px 0 18px; }
+  .modal-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .modal-actions button {
+    border:none; padding: 10px 18px; border-radius: 100px; font-weight:700; font-size:13.5px;
+  }
+  .btn-primary { background: var(--gradient); color:#fff; }
+  .btn-ghost { background: var(--surface-2); color: var(--ink); border:1px solid var(--border) !important; }
+
+  /* ---------- Practice ---------- */
+  .mode-switch { display:flex; gap:8px; margin-bottom: 22px; background: var(--surface-2); padding:5px; border-radius:100px; width: fit-content; }
+  .mode-switch button {
+    border:none; background:none; padding: 9px 18px; border-radius: 100px; font-weight:600; font-size:13.5px; color: var(--ink-dim);
+  }
+  .mode-switch button.active { background: var(--gradient); color:#fff; }
+
+  .practice-layout { display:grid; grid-template-columns: minmax(0,1.25fr) minmax(260px,1fr); gap: 20px; }
+  @media (max-width: 860px) { .practice-layout { grid-template-columns: 1fr; } }
+
+  .cam-card { background: var(--surface); border:1px solid var(--border); border-radius:18px; padding:18px; box-shadow: var(--shadow); }
+  .cam-frame { position:relative; width:100%; aspect-ratio: 4/3; border-radius:12px; overflow:hidden; background:#0d0c1f; border:1px solid var(--border); }
+  video, canvas.overlay { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  video { transform: scaleX(-1); opacity:0; }
+  canvas.overlay { transform: scaleX(-1); }
+  .cam-cover {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 14px; text-align:center; padding:20px; color:#fff; background: rgba(10,8,30,0.6);
+  }
+  .cam-cover p { margin:0; max-width: 34ch; font-size: 13.5px; opacity:0.9; }
+  .status-line { display:flex; align-items:center; gap:8px; margin-top: 12px; font-size: 13px; color: var(--ink-dim); }
+  .status-dot2 { width:8px; height:8px; border-radius:50%; background: var(--ink-dim); }
+  .status-dot2.live { background: var(--success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent); }
+  .status-dot2.warn { background: var(--danger); }
+
+  .readout-card { background: var(--surface); border:1px solid var(--border); border-radius:18px; padding:22px; box-shadow: var(--shadow); text-align:center; }
+  .readout-card .letter-display {
+    font-family: var(--font-head); font-weight:800; font-size: 58px; min-height: 70px;
+    background: var(--gradient); -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .readout-card .letter-display.none { background:none; -webkit-text-fill-color: var(--ink-dim); color: var(--ink-dim); font-size: 26px; }
+  .confidence-row { margin-top: 10px; }
+  .confidence-bar { height: 8px; background: var(--surface-2); border-radius:100px; overflow:hidden; margin-top:6px; }
+  .confidence-fill { height:100%; background: var(--gradient); width:0%; transition: width 0.1s linear; }
+  .confidence-label { font-size:12px; color: var(--ink-dim); }
+  .status-msg { margin-top: 14px; font-size: 13.5px; font-weight:600; color: var(--ink-dim); }
+
+  /* ---------- Challenge ---------- */
+  .challenge-top { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom: 18px; }
+  .progress-wrap { flex:1; min-width: 180px; }
+  .progress-bar-track { height:10px; background: var(--surface-2); border-radius:100px; overflow:hidden; }
+  .progress-bar-fill { height:100%; background: var(--gradient); width:0%; transition: width 0.25s ease; }
+  .progress-labels { display:flex; justify-content:space-between; font-size:12.5px; color: var(--ink-dim); margin-top:5px; }
+  .score-pill { background: var(--surface); border:1px solid var(--border); border-radius:100px; padding:8px 16px; font-weight:700; font-size:13.5px; white-space:nowrap; }
+  .challenge-controls { display:flex; gap:8px; }
+  .challenge-controls button {
+    border:1px solid var(--border); background: var(--surface); color: var(--ink); font-weight:600; font-size:13px;
+    padding:8px 14px; border-radius:100px;
+  }
+  .challenge-controls button:hover { border-color: var(--purple); color: var(--purple); }
+
+  .target-card { background: var(--surface); border:1px solid var(--border); border-radius:18px; padding:24px; text-align:center; box-shadow: var(--shadow); margin-bottom: 18px; }
+  .target-card .eyebrow { font-size:12.5px; color: var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:0.05em; }
+  .target-card .target-letter { font-family: var(--font-head); font-weight:800; font-size: 52px; margin: 6px 0; }
+  .target-card .finger-diagram { justify-content:center; margin: 8px 0; }
+  .target-card .tip { font-size:13.5px; color: var(--ink-dim); max-width: 44ch; margin: 6px auto 0; line-height:1.5; }
+  .manual-tag { display:inline-block; margin-top:10px; font-size:11.5px; font-weight:700; color: var(--purple-dim); background: var(--surface-2); padding:4px 10px; border-radius:100px; }
+
+  .feedback-banner {
+    text-align:center; font-weight:800; font-size: 20px; padding: 14px; border-radius: 12px; margin-bottom: 18px;
+    display:none;
+  }
+  .feedback-banner.correct { display:block; background: var(--success-bg); color: var(--success); }
+  .feedback-banner.wrong { display:block; background: var(--danger-bg); color: var(--danger); }
+
+  .mark-done-btn {
+    border:none; background: var(--gradient); color:#fff; font-weight:700; font-size:14px;
+    padding: 11px 24px; border-radius:100px; margin-top: 14px;
+  }
+
+  /* ---------- Results ---------- */
+  .results-card { background: var(--surface); border:1px solid var(--border); border-radius:20px; padding: 34px; text-align:center; box-shadow: var(--shadow); max-width: 560px; margin: 0 auto; }
+  .results-card h2 { font-size: 24px; margin-bottom: 6px; }
+  .results-stats { display:grid; grid-template-columns: repeat(2,1fr); gap: 14px; margin: 24px 0; text-align:left; }
+  .stat-box { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; }
+  .stat-box .num { font-family: var(--font-head); font-weight:800; font-size: 24px; }
+  .stat-box .lbl { font-size: 12px; color: var(--ink-dim); margin-top:2px; }
+  .results-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top: 6px; }
+  .results-actions button { border:none; padding: 12px 24px; border-radius:100px; font-weight:700; font-size:14px; }
+
+  /* about */
+  .about-card { background: var(--surface); border:1px solid var(--border); border-radius:18px; padding: 28px; box-shadow: var(--shadow); max-width: 720px; }
+  .about-card h3 { font-size:16px; margin: 18px 0 6px; }
+  .about-card p { font-size: 14px; color: var(--ink-dim); line-height:1.65; margin:0; }
+  .about-card ul { margin: 6px 0 0; padding-left: 20px; color: var(--ink-dim); font-size:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="nav-brand"><span class="dot"></span>SignLearn</div>
+  <div class="nav-links">
+    <button data-page="home" class="active">Home</button>
+    <button data-page="alphabet">Learn Alphabet</button>
+    <button data-page="practice">Start Practice</button>
+    <button data-page="about">About App</button>
+  </div>
+  <button class="theme-btn" id="themeToggle" type="button">Switch to dark</button>
+</nav>
+
+<!-- HOME -->
+<section class="page active" id="page-home">
+  <div class="hero">
+    <h1>Learn American Sign Language, hands-on.</h1>
+    <p>Learn American Sign Language through real-time hand sign detection — right in your browser, using your webcam. Nothing you sign ever leaves your device.</p>
+    <div class="hero-actions">
+      <button class="btn-solid" data-page="practice">Start Practice</button>
+      <button class="btn-outline" data-page="alphabet">Learn Alphabet</button>
+      <button class="btn-outline" data-page="about">About App</button>
+    </div>
+  </div>
+  <div class="home-grid">
+    <div class="feature-card">
+      <div class="icon">✋</div>
+      <h3>Real-time detection</h3>
+      <p>Hold up a handshape and SignLearn reads your finger positions live, using on-device hand tracking — no data ever leaves your browser.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔤</div>
+      <h3>Full alphabet reference</h3>
+      <p>Browse all 26 letters with a simple hand diagram and description for each, so you always know what shape you're aiming for.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🏆</div>
+      <h3>Learning Challenge</h3>
+      <p>Work through the alphabet letter by letter with live CORRECT / WRONG feedback, a progress bar, and a final score.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ALPHABET -->
+<section class="page" id="page-alphabet">
+  <div class="section-head">
+    <h2>Alphabet Reference</h2>
+    <p>All 26 letters, with a simplified finger diagram and a short description. Letters marked <strong>Live</strong> can be checked with your webcam; <strong>Manual</strong> letters are best practiced in front of a mirror or with someone who knows ASL, since this app's simple geometry-based detector can't reliably tell them apart yet.</p>
+  </div>
+  <div class="alpha-grid" id="alphaGrid"></div>
+</section>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="big" id="modalLetter">A</div>
+    <div class="finger-diagram" id="modalDiagram"></div>
+    <p class="desc" id="modalDesc"></p>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="modalClose" type="button">Close</button>
+      <button class="btn-primary" id="modalTry" type="button">Try it live</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRACTICE -->
+<section class="page" id="page-practice">
+  <div class="section-head">
+    <h2>Practice</h2>
+    <p>Choose Normal Detection to freely test handshapes, or Learning Challenge to work through the whole alphabet with scoring.</p>
+  </div>
+  <div class="mode-switch">
+    <button data-mode="normal" class="active" type="button">Normal Detection</button>
+    <button data-mode="challenge" type="button">Learning Challenge</button>
+  </div>
+
+  <!-- Normal detection -->
+  <div id="normalMode">
+    <div class="practice-layout">
+      <div class="cam-card">
+        <div class="cam-frame" id="normalFrame">
+          <div class="cam-cover" id="normalCover">
+            <p><strong>Turn on your camera</strong><br>Hold one hand up, palm toward the camera, in good light.</p>
+            <button class="btn-primary" style="border:none;" id="normalStartBtn" type="button">Start camera</button>
+          </div>
+        </div>
+        <div class="status-line"><span class="status-dot2" id="normalDot"></span><span id="normalStatusText">Camera off</span></div>
+      </div>
+      <div class="readout-card">
+        <div class="letter-display none" id="normalLetterDisplay">NO LETTER</div>
+        <div class="confidence-row">
+          <div class="confidence-label"><span id="normalConfLabel">Confidence: 0%</span></div>
+          <div class="confidence-bar"><div class="confidence-fill" id="normalConfFill"></div></div>
+        </div>
+        <div class="status-msg" id="normalStatusMsg">No hand detected</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Challenge -->
+  <div id="challengeMode" style="display:none;">
+    <div class="challenge-top">
+      <div class="progress-wrap">
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="chalProgressFill"></div></div>
+        <div class="progress-labels"><span id="chalCounter">1 / 26</span><span id="chalTimer">0:00</span></div>
+      </div>
+      <div class="score-pill">Score: <span id="chalScore">0</span></div>
+      <div class="challenge-controls">
+        <button id="chalNextBtn" type="button">Skip</button>
+        <button id="chalRestartBtn" type="button">Restart</button>
+      </div>
+    </div>
+
+    <div class="feedback-banner" id="chalFeedback"></div>
+
+    <div class="target-card">
+      <div class="eyebrow" id="chalEyebrow">Show the sign for</div>
+      <div class="target-letter" id="chalTargetLetter">A</div>
+      <div class="finger-diagram" id="chalDiagram"></div>
+      <div class="tip" id="chalTip"></div>
+      <div id="chalManualWrap" style="display:none;">
+        <span class="manual-tag">Manual practice — live check not available</span><br>
+        <button class="mark-done-btn" id="chalMarkDone" type="button">I practiced this ✓</button>
+      </div>
+    </div>
+
+    <div class="practice-layout">
+      <div class="cam-card">
+        <div class="cam-frame" id="chalFrame">
+          <div class="cam-cover" id="chalCover">
+            <p><strong>Turn on your camera</strong><br>Match the target handshape shown above and hold it steady.</p>
+            <button class="btn-primary" style="border:none;" id="chalStartBtn" type="button">Start camera</button>
+          </div>
+        </div>
+        <div class="status-line"><span class="status-dot2" id="chalDot"></span><span id="chalStatusText">Camera off</span></div>
+      </div>
+      <div class="readout-card">
+        <div class="letter-display none" id="chalLetterDisplay">NO LETTER</div>
+        <div class="status-msg" id="chalStatusMsg">No hand detected</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section class="page" id="page-results">
+  <div class="results-card">
+    <h2>Challenge Complete 🎉</h2>
+    <p style="color:var(--ink-dim); font-size:14px;">Here's how you did across the alphabet.</p>
+    <div class="results-stats">
+      <div class="stat-box"><div class="num" id="resScore">0/0</div><div class="lbl">Auto-verified score</div></div>
+      <div class="stat-box"><div class="num" id="resAccuracy">0%</div><div class="lbl">Accuracy</div></div>
+      <div class="stat-box"><div class="num" id="resCorrect">0</div><div class="lbl">Correct answers</div></div>
+      <div class="stat-box"><div class="num" id="resWrong">0</div><div class="lbl">Wrong attempts</div></div>
+      <div class="stat-box"><div class="num" id="resTime">0:00</div><div class="lbl">Time taken</div></div>
+      <div class="stat-box"><div class="num" id="resPracticed">0/26</div><div class="lbl">Letters completed</div></div>
+    </div>
+    <div class="results-actions">
+      <button class="btn-primary" id="resAgainBtn" type="button">Practice Again</button>
+      <button class="btn-ghost" id="resHomeBtn" type="button">Back to Home</button>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="page" id="page-about">
+  <div class="section-head"><h2>About SignLearn</h2></div>
+  <div class="about-card">
+    <p>SignLearn is a browser-based ASL fingerspelling trainer. It uses <strong>MediaPipe Hands</strong> to map 21 points across your hand from your webcam feed, entirely on your own device — no video or images are ever uploaded anywhere.</p>
+    <h3>How detection works</h3>
+    <p>A geometry-based classifier looks at which fingers are extended or curled, and the distances and angles between key points, to match your handshape against known letter patterns.</p>
+    <h3>Honest limitations</h3>
+    <ul>
+      <li>Live detection reliably covers 12 static handshapes: A, B, C, D, F, I, L, O, U, V, W, Y.</li>
+      <li>J and Z involve a traced motion and aren't supported by this static-pose detector.</li>
+      <li>Several letters (M, N, S, T, E, R, and others) look very similar in hand geometry and aren't reliably distinguished without a trained machine-learning model — they're included for reference and manual practice instead of live scoring.</li>
+      <li>ASL is a full language with its own grammar, not just English spelled letter-by-letter — this app teaches fingerspelling only.</li>
+    </ul>
+    <h3>Privacy</h3>
+    <p>Your camera feed is processed locally in your browser and is never recorded, stored, or sent anywhere.</p>
+  </div>
+</section>
+
+<script>
+(function () {
+  // ---------------- Letter data ----------------
+  // fingers: [thumb, index, middle, ring, pinky] — simplified for the on-screen diagram only.
+  const LETTERS = [
+    {letter:'A', fingers:[1,0,0,0,0], tip:'Fist with thumb resting alongside the fingers.', supported:true},
+    {letter:'B', fingers:[0,1,1,1,1], tip:'Flat hand, four fingers up and together, thumb folded across the palm.', supported:true},
+    {letter:'C', fingers:[0,0,0,0,0], tip:'Fingers and thumb curved together to form a C shape.', supported:true},
+    {letter:'D', fingers:[0,1,0,0,0], tip:'Index finger up, other fingers curled, thumb touching the middle fingertip.', supported:true},
+    {letter:'E', fingers:[0,0,0,0,0], tip:'Fingertips curled down to touch the thumb, hand closed.', supported:false},
+    {letter:'F', fingers:[0,0,1,1,1], tip:'Thumb and index finger touch at the tips, other three fingers stand up.', supported:true},
+    {letter:'G', fingers:[1,1,0,0,0], tip:'Thumb and index finger extended, pointing sideways.', supported:false},
+    {letter:'H', fingers:[0,1,1,0,0], tip:'Index and middle fingers extended together, pointing sideways.', supported:false},
+    {letter:'I', fingers:[0,0,0,0,1], tip:'Pinky finger up, other fingers and thumb curled into a fist.', supported:true},
+    {letter:'J', fingers:[0,0,0,0,1], tip:"Like 'I', but trace a J shape in the air with your pinky (motion sign).", supported:false},
+    {letter:'K', fingers:[1,1,1,0,0], tip:'Index and middle fingers up in a V, thumb touching between them.', supported:false},
+    {letter:'L', fingers:[1,1,0,0,0], tip:'Thumb and index finger extended to form an L shape.', supported:true},
+    {letter:'M', fingers:[0,0,0,0,0], tip:'Thumb tucked under three curled fingers (index, middle, ring).', supported:false},
+    {letter:'N', fingers:[0,0,0,0,0], tip:'Thumb tucked under two curled fingers (index, middle).', supported:false},
+    {letter:'O', fingers:[0,0,0,0,0], tip:'Fingertips and thumb touch to form a circle.', supported:true},
+    {letter:'P', fingers:[1,1,1,0,0], tip:'Like K, but pointing downward.', supported:false},
+    {letter:'Q', fingers:[1,1,0,0,0], tip:'Like G, but pointing downward.', supported:false},
+    {letter:'R', fingers:[0,1,1,0,0], tip:'Index and middle fingers crossed, other fingers curled.', supported:false},
+    {letter:'S', fingers:[0,0,0,0,0], tip:'Closed fist with the thumb wrapped across the front of the fingers.', supported:false},
+    {letter:'T', fingers:[0,0,0,0,0], tip:'Fist with the thumb tucked between the index and middle fingers.', supported:false},
+    {letter:'U', fingers:[0,1,1,0,0], tip:'Index and middle fingers extended together, pointing up.', supported:true},
+    {letter:'V', fingers:[0,1,1,0,0], tip:'Index and middle fingers extended and spread apart.', supported:true},
+    {letter:'W', fingers:[0,1,1,1,0], tip:'Index, middle, and ring fingers extended and spread.', supported:true},
+    {letter:'X', fingers:[0,0,0,0,0], tip:'Index finger curled into a hook shape, other fingers closed.', supported:false},
+    {letter:'Y', fingers:[1,0,0,0,1], tip:"Thumb and pinky extended, other fingers curled (\u2018hang loose\u2019).", supported:true},
+    {letter:'Z', fingers:[0,0,0,0,1], tip:'Trace the letter Z in the air with your index finger (motion sign).', supported:false}
+  ];
+  const bySupported = LETTERS.filter(function(l){ return l.supported; }).map(function(l){ return l.letter; });
+
+  function diagramSVG(fingers) {
+    const classes = ['thumb','f1','f2','f3','f4'];
+    let bars = '';
+    fingers.forEach(function (up, i) {
+      bars += '<div class="bar ' + classes[i] + (up ? ' up' : '') + '"></div>';
+    });
+    return bars;
+  }
+
+  // ---------------- Navigation ----------------
+  const pages = document.querySelectorAll('.page');
+  const navBtns = document.querySelectorAll('.nav-links button, [data-page]');
+  function showPage(id) {
+    pages.forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + id); });
+    document.querySelectorAll('.nav-links button').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.page === id);
+    });
+    if (id !== 'practice') stopCamera();
+    window.scrollTo({top:0, behavior:'instant' in window ? 'instant' : 'auto'});
+  }
+  navBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.page) showPage(b.dataset.page);
+    });
+  });
+
+  // ---------------- Theme ----------------
+  const themeToggle = document.getElementById('themeToggle');
+  function curTheme() {
+    const a = document.documentElement.getAttribute('data-theme');
+    if (a) return a;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function labelTheme() { themeToggle.textContent = curTheme() === 'dark' ? 'Switch to light' : 'Switch to dark'; }
+  themeToggle.addEventListener('click', function () {
+    document.documentElement.setAttribute('data-theme', curTheme() === 'dark' ? 'light' : 'dark');
+    labelTheme();
+  });
+  labelTheme();
+
+  // ---------------- Alphabet grid + modal ----------------
+  const alphaGrid = document.getElementById('alphaGrid');
+  LETTERS.forEach(function (L) {
+    const card = document.createElement('div');
+    card.className = 'alpha-card';
+    card.innerHTML =
+      '<span class="badge ' + (L.supported ? 'live' : 'manual') + '">' + (L.supported ? 'Live' : 'Manual') + '</span>' +
+      '<div class="big">' + L.letter + '</div>' +
+      '<div class="finger-diagram">' + diagramSVG(L.fingers) + '</div>' +
+      '<div class="tip-mini">' + L.tip + '</div>';
+    card.addEventListener('click', function () { openModal(L); });
+    alphaGrid.appendChild(card);
+  });
+
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const modalLetter = document.getElementById('modalLetter');
+  const modalDiagram = document.getElementById('modalDiagram');
+  const modalDesc = document.getElementById('modalDesc');
+  const modalTry = document.getElementById('modalTry');
+  let modalTarget = null;
+  function openModal(L) {
+    modalTarget = L;
+    modalLetter.textContent = L.letter;
+    modalDiagram.innerHTML = diagramSVG(L.fingers);
+    modalDesc.textContent = L.tip + (L.supported ? '' : ' (Manual practice — not auto-detected.)');
+    modalTry.style.display = L.supported ? 'inline-block' : 'none';
+    modalBackdrop.classList.add('open');
+  }
+  document.getElementById('modalClose').addEventListener('click', function () { modalBackdrop.classList.remove('open'); });
+  modalBackdrop.addEventListener('click', function (e) { if (e.target === modalBackdrop) modalBackdrop.classList.remove('open'); });
+  modalTry.addEventListener('click', function () {
+    modalBackdrop.classList.remove('open');
+    showPage('practice');
+    setMode('normal');
+  });
+
+  // ---------------- Hand detection engine (shared) ----------------
+  const CONNECTIONS = [
+    [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+    [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]
+  ];
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y, (a.z||0)-(b.z||0)); }
+  function fingerExtended(lm, mcp, pip, tip, wrist) {
+    const mcpW = dist(lm[mcp], lm[wrist]);
+    const tipW = dist(lm[tip], lm[wrist]);
+    const tipM = dist(lm[tip], lm[mcp]);
+    const pipM = dist(lm[pip], lm[mcp]);
+    return tipW > mcpW * 1.15 && tipM > pipM;
+  }
+  function thumbExtended(lm) {
+    const ref = lm[17];
+    return dist(lm[4], ref) > dist(lm[2], ref) * 1.05;
+  }
+  function classify(lm) {
+    const W = 0;
+    const index = fingerExtended(lm,5,6,8,W);
+    const middle = fingerExtended(lm,9,10,12,W);
+    const ring = fingerExtended(lm,13,14,16,W);
+    const pinky = fingerExtended(lm,17,18,20,W);
+    const thumb = thumbExtended(lm);
+    const span = dist(lm[0], lm[9]) || 1;
+    const pinch = dist(lm[4], lm[8]) / span;
+    const gap = dist(lm[8], lm[12]) / span;
+    const wide = dist(lm[4], lm[8]) / span;
+    const extCount = [index,middle,ring,pinky].filter(Boolean).length;
+
+    if (pinch < 0.28 && !middle && !ring && !pinky) return 'O';
+    if (pinch < 0.3 && middle && ring && pinky) return 'F';
+    if (index && middle && ring && pinky && !thumb) return 'B';
+    if (index && middle && ring && !pinky) return 'W';
+    if (index && middle && !ring && !pinky && gap > 0.22) return 'V';
+    if (index && middle && !ring && !pinky && gap <= 0.22) return 'U';
+    if (index && !middle && !ring && !pinky && thumb && wide > 0.5) return 'L';
+    if (index && !middle && !ring && !pinky && thumb) return 'D';
+    if (!index && !middle && !ring && pinky && !thumb) return 'I';
+    if (!index && !middle && !ring && pinky && thumb) return 'Y';
+    if (extCount === 0 && thumb) return 'A';
+    if (extCount === 0 && !thumb && pinch > 0.3 && pinch < 0.75) return 'C';
+    return null;
+  }
+  function drawSkeleton(ctx, canvas, lm) {
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(139,92,246,0.85)';
+    ctx.beginPath();
+    CONNECTIONS.forEach(function (p) {
+      const a=lm[p[0]], b=lm[p[1]];
+      ctx.moveTo(a.x*canvas.width, a.y*canvas.height);
+      ctx.lineTo(b.x*canvas.width, b.y*canvas.height);
+    });
+    ctx.stroke();
+    lm.forEach(function (pt,i) {
+      ctx.beginPath();
+      ctx.arc(pt.x*canvas.width, pt.y*canvas.height, i%4===0?5:3.5, 0, Math.PI*2);
+      ctx.fillStyle = i===0 ? '#4C6FFF' : '#ffffff';
+      ctx.fill();
+    });
+  }
+
+  // Shared camera module: one video/canvas pair, reparented into whichever frame is active.
+  let handsModel = null, running = false, rafId = null, activeVideo=null, activeCanvas=null, activeCtx=null;
+  let onLandmarks = null; // callback(lm|null)
+
+  function buildCamEls() {
+    const video = document.createElement('video');
+    video.playsInline = true; video.muted = true;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'overlay';
+    return {video, canvas};
+  }
+
+  async function ensureHandsModel() {
+    if (handsModel) return;
+    handsModel = new Hands({ locateFile: function (f) { return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/' + f; } });
+    handsModel.setOptions({ maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.7, minTrackingConfidence:0.6 });
+    handsModel.onResults(function (results) {
+      if (!activeCanvas) return;
+      activeCanvas.width = activeVideo.videoWidth || activeCanvas.clientWidth;
+      activeCanvas.height = activeVideo.videoHeight || activeCanvas.clientHeight;
+      activeCtx.clearRect(0,0,activeCanvas.width, activeCanvas.height);
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+        const lm = results.multiHandLandmarks[0];
+        drawSkeleton(activeCtx, activeCanvas, lm);
+        if (onLandmarks) onLandmarks(lm);
+      } else {
+        if (onLandmarks) onLandmarks(null);
+      }
+    });
+  }
+
+  async function processFrame() {
+    if (!running) return;
+    if (activeVideo && activeVideo.readyState >= 2) {
+      await handsModel.send({ image: activeVideo });
+    }
+    rafId = requestAnimationFrame(processFrame);
+  }
+
+  let currentStream = null;
+  async function startCamera(frameEl, coverEl, dotEl, statusEl, handler) {
+    onLandmarks = handler;
+    coverEl.querySelector ? null : null;
+    statusEl.textContent = 'Requesting camera…';
+    try {
+      if (!currentStream) {
+        currentStream = await navigator.mediaDevices.getUserMedia({ video:{width:{ideal:960},height:{ideal:720},facingMode:'user'}, audio:false });
+      }
+      const els = buildCamEls();
+      activeVideo = els.video; activeCanvas = els.canvas; activeCtx = els.canvas.getContext('2d');
+      activeVideo.srcObject = currentStream;
+      frameEl.querySelectorAll('video,canvas.overlay').forEach(function(n){ n.remove(); });
+      frameEl.appendChild(activeVideo);
+      frameEl.appendChild(activeCanvas);
+      await activeVideo.play();
+      await ensureHandsModel();
+      running = true;
+      coverEl.style.display = 'none';
+      dotEl.classList.add('live'); dotEl.classList.remove('warn');
+      statusEl.textContent = 'Camera live — tracking your hand';
+      processFrame();
+    } catch (err) {
+      dotEl.classList.add('warn');
+      statusEl.textContent = 'Camera unavailable: ' + (err && err.message ? err.message : 'permission denied');
+    }
+  }
+  function stopCamera() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (currentStream) { currentStream.getTracks().forEach(function(t){t.stop();}); currentStream = null; }
+    activeVideo = null; activeCanvas = null; activeCtx = null; onLandmarks = null;
+    document.getElementById('normalCover').style.display = 'flex';
+    document.getElementById('chalCover').style.display = 'flex';
+    document.getElementById('normalDot').classList.remove('live');
+    document.getElementById('chalDot').classList.remove('live');
+  }
+  window.addEventListener('beforeunload', stopCamera);
+
+  // ---------------- Mode switch (Normal / Challenge) ----------------
+  const modeBtns = document.querySelectorAll('.mode-switch button');
+  function setMode(mode) {
+    modeBtns.forEach(function(b){ b.classList.toggle('active', b.dataset.mode === mode); });
+    document.getElementById('normalMode').style.display = mode === 'normal' ? 'block' : 'none';
+    document.getElementById('challengeMode').style.display = mode === 'challenge' ? 'block' : 'none';
+    stopCamera();
+  }
+  modeBtns.forEach(function(b){ b.addEventListener('click', function(){ setMode(b.dataset.mode); }); });
+
+  // ---------------- Normal detection ----------------
+  const normalLetterDisplay = document.getElementById('normalLetterDisplay');
+  const normalConfFill = document.getElementById('normalConfFill');
+  const normalConfLabel = document.getElementById('normalConfLabel');
+  const normalStatusMsg = document.getElementById('normalStatusMsg');
+  let normalBuffer = [];
+  function normalHandler(lm) {
+    if (!lm) {
+      normalBuffer = [];
+      normalLetterDisplay.textContent = 'NO LETTER';
+      normalLetterDisplay.classList.add('none');
+      normalConfFill.style.width = '0%';
+      normalConfLabel.textContent = 'Confidence: 0%';
+      normalStatusMsg.textContent = 'No hand detected';
+      return;
+    }
+    const letter = classify(lm);
+    normalBuffer.push(letter);
+    if (normalBuffer.length > 10) normalBuffer.shift();
+    if (!letter) {
+      normalLetterDisplay.textContent = 'NO LETTER';
+      normalLetterDisplay.classList.add('none');
+      normalStatusMsg.textContent = 'Processing…';
+      normalConfFill.style.width = '0%';
+      normalConfLabel.textContent = 'Confidence: 0%';
+      return;
+    }
+    const agree = normalBuffer.filter(function(x){return x===letter;}).length;
+    const conf = Math.round((agree / normalBuffer.length) * 100);
+    normalLetterDisplay.textContent = letter;
+    normalLetterDisplay.classList.remove('none');
+    normalStatusMsg.textContent = 'Hand detected';
+    normalConfFill.style.width = conf + '%';
+    normalConfLabel.textContent = 'Confidence: ' + conf + '%';
+  }
+  document.getElementById('normalStartBtn').addEventListener('click', function () {
+    startCamera(document.getElementById('normalFrame'), document.getElementById('normalCover'), document.getElementById('normalDot'), document.getElementById('normalStatusText'), normalHandler);
+  });
+
+  // ---------------- Challenge ----------------
+  const chalTargetLetter = document.getElementById('chalTargetLetter');
+  const chalDiagram = document.getElementById('chalDiagram');
+  const chalTip = document.getElementById('chalTip');
+  const chalManualWrap = document.getElementById('chalManualWrap');
+  const chalFeedback = document.getElementById('chalFeedback');
+  const chalProgressFill = document.getElementById('chalProgressFill');
+  const chalCounter = document.getElementById('chalCounter');
+  const chalScoreEl = document.getElementById('chalScore');
+  const chalTimerEl = document.getElementById('chalTimer');
+  const chalLetterDisplay = document.getElementById('chalLetterDisplay');
+  const chalStatusMsg = document.getElementById('chalStatusMsg');
+
+  let chalIndex = 0, chalScore = 0, chalWrong = 0, chalStartTime = null, chalTimerId = null;
+  let chalHoldLetter = null, chalHoldStart = null, chalLocked = false;
+  const HOLD_MS = 650;
+
+  function chalCurrent() { return LETTERS[chalIndex]; }
+
+  function renderChalTarget() {
+    const L = chalCurrent();
+    chalFeedback.className = 'feedback-banner';
+    chalFeedback.textContent = '';
+    chalTargetLetter.textContent = L.letter;
+    chalDiagram.innerHTML = diagramSVG(L.fingers);
+    chalTip.textContent = L.tip;
+    chalManualWrap.style.display = L.supported ? 'none' : 'block';
+    chalCounter.textContent = (chalIndex+1) + ' / 26';
+    chalProgressFill.style.width = ((chalIndex)/26*100) + '%';
+    chalScoreEl.textContent = chalScore;
+    chalHoldLetter = null; chalHoldStart = null; chalLocked = false;
+    chalLetterDisplay.textContent = 'NO LETTER';
+    chalLetterDisplay.classList.add('none');
+    chalStatusMsg.textContent = 'No hand detected';
+  }
+
+  function startChallengeTimer() {
+    chalStartTime = Date.now();
+    if (chalTimerId) clearInterval(chalTimerId);
+    chalTimerId = setInterval(function () {
+      const s = Math.floor((Date.now() - chalStartTime)/1000);
+      chalTimerEl.textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+    }, 500);
+  }
+
+  function advanceChallenge() {
+    chalIndex++;
+    if (chalIndex >= LETTERS.length) {
+      finishChallenge();
+      return;
+    }
+    renderChalTarget();
+  }
+
+  function finishChallenge() {
+    if (chalTimerId) clearInterval(chalTimerId);
+    stopCamera();
+    const elapsed = Math.floor((Date.now() - chalStartTime)/1000);
+    document.getElementById('resScore').textContent = chalScore + '/' + bySupported.length;
+    const attempts = chalScore + chalWrong;
+    document.getElementById('resAccuracy').textContent = attempts ? Math.round(chalScore/attempts*100) + '%' : '—';
+    document.getElementById('resCorrect').textContent = chalScore;
+    document.getElementById('resWrong').textContent = chalWrong;
+    document.getElementById('resTime').textContent = Math.floor(elapsed/60) + ':' + String(elapsed%60).padStart(2,'0');
+    document.getElementById('resPracticed').textContent = '26/26';
+    showPage('results');
+  }
+
+  function resetChallenge() {
+    chalIndex = 0; chalScore = 0; chalWrong = 0;
+    renderChalTarget();
+    startChallengeTimer();
+  }
+
+  function chalHandler(lm) {
+    if (chalLocked) return;
+    const target = chalCurrent();
+    if (!target.supported) return; // manual letters don't use camera evaluation
+    if (!lm) {
+      chalLetterDisplay.textContent = 'NO LETTER';
+      chalLetterDisplay.classList.add('none');
+      chalStatusMsg.textContent = 'No hand detected';
+      chalHoldLetter = null; chalHoldStart = null;
+      return;
+    }
+    const letter = classify(lm);
+    chalStatusMsg.textContent = letter ? 'Hand detected' : 'Processing…';
+    chalLetterDisplay.textContent = letter || 'NO LETTER';
+    chalLetterDisplay.classList.toggle('none', !letter);
+    if (!letter) { chalHoldLetter = null; chalHoldStart = null; return; }
+
+    if (letter !== chalHoldLetter) {
+      chalHoldLetter = letter;
+      chalHoldStart = performance.now();
+      return;
+    }
+    if (performance.now() - chalHoldStart >= HOLD_MS) {
+      chalLocked = true;
+      if (letter === target.letter) {
+        chalScore++;
+        chalScoreEl.textContent = chalScore;
+        chalFeedback.className = 'feedback-banner correct';
+        chalFeedback.textContent = 'CORRECT! 🎉';
+        setTimeout(function () { chalLocked = false; advanceChallenge(); }, 900);
+      } else {
+        chalWrong++;
+        chalFeedback.className = 'feedback-banner wrong';
+        chalFeedback.textContent = 'WRONG – TRY AGAIN';
+        setTimeout(function () {
+          chalFeedback.className = 'feedback-banner';
+          chalFeedback.textContent = '';
+          chalHoldLetter = null; chalHoldStart = null; chalLocked = false;
+        }, 1100);
+      }
+    }
+  }
+
+  document.getElementById('chalStartBtn').addEventListener('click', function () {
+    startCamera(document.getElementById('chalFrame'), document.getElementById('chalCover'), document.getElementById('chalDot'), document.getElementById('chalStatusText'), chalHandler);
+    if (!chalStartTime) { resetChallenge(); }
+  });
+  document.getElementById('chalMarkDone').addEventListener('click', function () {
+    chalFeedback.className = 'feedback-banner correct';
+    chalFeedback.textContent = 'PRACTICED ✓';
+    setTimeout(function () { advanceChallenge(); }, 500);
+  });
+  document.getElementById('chalNextBtn').addEventListener('click', function () { advanceChallenge(); });
+  document.getElementById('chalRestartBtn').addEventListener('click', function () { resetChallenge(); });
+
+  document.getElementById('resAgainBtn').addEventListener('click', function () {
+    showPage('practice'); setMode('challenge'); resetChallenge();
+  });
+  document.getElementById('resHomeBtn').addEventListener('click', function () { showPage('home'); });
+
+  // init
+  renderChalTarget();
+})();
+</script>
+</body>
+</html>
